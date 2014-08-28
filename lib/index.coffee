@@ -1,5 +1,4 @@
-cookieParser = require 'cookie-parser'
-cookieParserUtils = require 'cookie-parser/lib/parse'
+cookieParserModule = require 'cookie-parser'
 express = require 'express'
 expressLayer = require 'express/lib/router/layer'
 expressSession = require 'express-session'
@@ -56,36 +55,29 @@ express.application.io = (options) ->
         else
             for key, value of next
                 @router["#{route}:#{key}"] = value
-    @io.configure => @io.set 'authorization', (data, next) =>
-        unless sessionConfig.store?
-            return async.forEachSeries @io.middleware, (callback, next) ->
-                callback(data, next)
-            , (error) ->
+    @io.configure(() =>
+        @cookieParser = cookieParserModule(sessionConfig.secret)
+        @io.set('authorization', (data, next) =>
+            unless sessionConfig.store?
+                return async.forEachSeries @io.middleware, (callback, next) ->
+                    callback(data, next)
+                , (error) ->
+                    return next error if error?
+                    next null, true
+            @cookieParser(data, null, (error) ->
                 return next error if error?
-                next null, true
-        cookieParser = cookieParser()
-        cookieParser data, null, (error) ->
-            return next error if error?
-            rawCookie = data.cookies[sessionConfig.key]
-            unless rawCookie?
-                request = headers: cookie: data.query.cookie
-                return cookieParser request, null, (error) ->
-                    data.cookies = request.cookies
-                    rawCookie = data.cookies[sessionConfig.key]
-                    return next "No cookie present", false unless rawCookie?
-                    sessionId = cookieParserUtils.signedCookies rawCookie, sessionConfig.secret
-                    data.sessionID = sessionId
-                    sessionConfig.store.get sessionId, (error, session) ->
-                        return next error if error?
-                        data.session = new expressSession.Session data, session
-                        next null, true
-                    
-            sessionId = cookieParserUtils.signedCookies rawCookie, sessionConfig.secret
-            data.sessionID = sessionId
-            sessionConfig.store.get sessionId, (error, session) ->
-                return next error if error?
-                data.session = new expressSession.Session data, session
-                next null, true
+                if sessionConfig.secret?
+                    sessionId = data.signedCookies[sessionConfig.key]
+                else
+                    sessionId = data.cookies[sessionConfig.key]
+                data.sessionID = sessionId
+                sessionConfig.store.get sessionId, (error, session) ->
+                    return next error if error?
+                    data.session = new expressSession.Session data, session
+                    next null, true
+            )
+        )
+    )
 
     @io.use = (callback) =>
         @io.middleware.push callback

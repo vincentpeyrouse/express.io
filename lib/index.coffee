@@ -73,14 +73,14 @@ express.application.io = (options) ->
                     data.cookies = request.cookies
                     rawCookie = data.cookies[sessionConfig.key]
                     return next "No cookie present", false unless rawCookie?
-                    sessionId = cookieParserUtils.signedCookies rawCookie, sessionConfig.secret
+                    sessionId = cookieParserUtils.signedCookie rawCookie, sessionConfig.secret
                     data.sessionID = sessionId
                     sessionConfig.store.get sessionId, (error, session) ->
                         return next error if error?
                         data.session = new expressSession.Session data, session
                         next null, true
-                    
-            sessionId = cookieParserUtils.signedCookies rawCookie, sessionConfig.secret
+
+            sessionId = cookieParserUtils.signedCookie rawCookie, sessionConfig.secret
             data.sessionID = sessionId
             sessionConfig.store.get sessionId, (error, session) ->
                 return next error if error?
@@ -98,8 +98,8 @@ express.application.io = (options) ->
         @io.sockets.emit.apply @io.sockets, args
 
     @io.room = (room) =>
-        new RoomIO(room, @io.sockets)  
-    
+        new RoomIO(room, @io.sockets)
+
     layer = new expressLayer('',
         sensitive: undefined
         strict: undefined
@@ -122,7 +122,7 @@ express.application.io = (options) ->
             broadcast: @io.broadcast
         next()
     )
-    
+
     @_router.stack.push layer
 
     return this
@@ -134,7 +134,7 @@ express.application.listen = ->
         @server.listen.apply @server, args
     else
         listen.apply this, args
-        
+
 
 initRoutes = (socket, io) ->
     setRoute = (key, callback) ->
